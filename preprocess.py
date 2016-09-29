@@ -4,16 +4,16 @@ import csv
 import sys
 import numpy as np
 
-
 def readFile(fname):
     ''' returns an array containing the data from the file '''
     data = []
     with open(fname, 'rb') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
+        # skip the header
+        reader.next()
         for row in reader:
-            if row[0] != 'x':
-                # row[0] contains the id, row [1] contains the data
-                data.append(row[1])
+            # row[0] contains the id, row [1] contains the data
+            data.append(row[1])
     return data
 
 def readData():

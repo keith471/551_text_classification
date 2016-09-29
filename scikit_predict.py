@@ -22,7 +22,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 
 from preprocess import processData
-from postprocess import postProcess
+from postprocess import writeResults
 
 # Display progress logs on stdout
 logging.basicConfig(level=logging.INFO,
@@ -301,8 +301,10 @@ if __name__ == "__main__":
         if type(clf) is GaussianNB:
             Xtr = Xtr.toarray()
             Xte = Xte.toarray()
-        results.append(benchmark(clf, Xtr, ytr, Xte))
+        clf_desc, pred, train_time, test_time = benchmark(clf, Xtr, ytr, Xte)
+        writeResults(clf_desc, pred)
+        results.append((clf_desc, pred, train_time, test_time))
 
-    print("Writing predictions to csv")
-    postProcess(results)
+    #print("Writing predictions to csv")
+    #postProcess(results)
     print()
