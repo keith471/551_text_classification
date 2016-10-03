@@ -281,8 +281,8 @@ if __name__ == "__main__":
         print("Logistic regression:", log_reg_tuned_parameters)
         print("Linear SVM:", svc_tuned_parameters)
         print()
-        logRegClf = GridSearchCV(LogisticRegression(), log_reg_tuned_parameters, cv=5)
-        linearSvcClf = GridSearchCV(LinearSVC(), svc_tuned_parameters, cv=5)
+        logRegClf = GridSearchCV(LogisticRegression(), log_reg_tuned_parameters, cv=3)
+        linearSvcClf = GridSearchCV(LinearSVC(), svc_tuned_parameters, cv=3)
     else:
         logRegClf = LogisticRegression()
         linearSvcClf = LinearSVC()
