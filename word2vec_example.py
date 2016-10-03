@@ -17,6 +17,8 @@ import nltk.data
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
+from sklearn.svm import LinearSVC
+
 # my modules
 from preprocess import processData
 from postprocess import writeResults
@@ -51,6 +53,7 @@ def loadVectors():
     model = Word2Vec.load_word2vec_format('/Volumes/Seagate Backup Plus Drive/GoogleNews-vectors-negative300.bin', binary = True)
     loadTime = time() - t0
     print("word2vec vectors loaded in %0.3f seconds" % loadTime)
+    print()
 
     # done "training" the model; we can do the following to trim uneeded memory
     t0 = time()
@@ -58,6 +61,7 @@ def loadVectors():
     model.init_sims(replace=True)
     trimTime = time() - t0
     print("trimmed memory in %0.3f seconds" % trimTime)
+    print()
 
     return model
 
@@ -73,13 +77,36 @@ def processDocument(doc, lowercase, lemmatize):
         tokens = [wnl.lemmatize(w) for w in tokens]
     return tokens
 
+def benchmark(clf, X_train, y_train, X_test):
+    print('_' * 80)
+    print("Training: ")
+    print(clf)
+    t0 = time()
+    clf.fit(X_train, y_train)
+    train_time = time() - t0
+    print("train time: %0.3fs" % train_time)
+    print()
+
+    t0 = time()
+    pred = clf.predict(X_test)
+    test_time = time() - t0
+    print("test time:  %0.3fs" % test_time)
+
+    print()
+    clf_descr = str(clf).split('(')[0]
+    return clf_descr, pred
+
 if __name__ == "__main__":
 
     model = loadVectors()
 
+    print("Processing data...")
     abstractsTrain, y, abstractsTest = processData()
+    print("done")
+    print()
 
     # X is our feature vectors
+    print("Constructing feature vectors")
     X = []
     maxDocLength = 0
     for doc in abstractsTrain:
@@ -93,24 +120,19 @@ if __name__ == "__main__":
         X.append(features)
         if len(features) > maxDocLength:
             maxDocLength = len(features)
+    print("done")
+    print()
 
     # exend any feature vectors shorter than the longest document by zero vectors
+    print("Extending feature vectors")
     zeros = np.zeros(model.vector_size)
     for vector in X:
         while len(vector) < maxDocLength:
             vector.append(zeros)
+    print("done")
+    print()
 
-    # pass X and y to a model and train it (look up how to instantiate a model using X and y)
+    clf = LinearSVC()
+    clfDesc, pred = benchmark(clf, X, y, abstractsTest)
 
-    # get predictions on abstractsTest
-    #writeResults(clf_desc, pred)
-
-
-
-
-
-'''
-print(model.most_similar("I'm"))
-print(model.doesnt_match('breakfast cereal lunch dinner'.split()))
-print(model.most_similar(positive=['woman', 'king'], negative=['man']))
-'''
+    writeResults(clfDesc, pred)
