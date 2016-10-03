@@ -18,6 +18,7 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
 from sklearn.svm import LinearSVC
+from sklearn import preprocessing
 
 # my modules
 from preprocess import processData
@@ -37,6 +38,15 @@ op.add_option("--lemmatize",
 op.add_option("--remove_stop_words",
               action="store_true",
               help="If set, sklearn's list of English stop words will be removed.")
+op.add_option("--report",
+              action="store_true", dest="print_report",
+              help="Print a detailed classification report.")
+op.add_option("--confusion_matrix",
+              action="store_true", dest="print_cm",
+              help="Print the confusion matrix.")
+op.add_option("--persist",
+              action="store_true",
+              help="If set, predictions for the test data will be persisted to disk")
 
 (opts, args) = op.parse_args()
 if len(args) > 0:
@@ -77,7 +87,7 @@ def processDocument(doc, lowercase, lemmatize):
         tokens = [wnl.lemmatize(w) for w in tokens]
     return tokens
 
-def benchmark(clf, X_train, y_train, X_test):
+def benchmark(clf, X_train, y_train, X_test, y_test):
     print('_' * 80)
     print("Training: ")
     print(clf)
@@ -91,25 +101,50 @@ def benchmark(clf, X_train, y_train, X_test):
     pred = clf.predict(X_test)
     test_time = time() - t0
     print("test time:  %0.3fs" % test_time)
+    print()
+
+    # get the accuracy of the predictions against the train data
+    score = metrics.accuracy_score(y_test, pred)
+    print("accuracy:   %0.3f" % score)
+    print()
+
+    if opts.print_report:
+        print("classification report:")
+        print(metrics.classification_report(y_test, pred, target_names=categories))
+
+    # print a confusion matrix
+    if opts.print_cm:
+        print("confusion matrix:")
+        print(metrics.confusion_matrix(y_test, pred))
 
     print()
     clf_descr = str(clf).split('(')[0]
-    return clf_descr, pred
+    return clf_descr, pred, score
 
-if __name__ == "__main__":
-
-    model = loadVectors()
-
-    print("Processing data...")
-    abstractsTrain, y, abstractsTest = processData()
-    print("done")
+def predict(clf, X_train, y_train, X_test):
+    print('_' * 80)
+    print("Training: ")
+    print(clf)
+    t0 = time()
+    clf.fit(X_train, y_train)
+    train_time = time() - t0
+    print("train time: %0.3fs" % train_time)
     print()
 
-    # X is our feature vectors
-    print("Constructing feature vectors")
+    t0 = time()
+    pred = clf.predict(X_test)
+    test_time = time() - t0
+    print("test time:  %0.3fs" % test_time)
+    print()
+
+    clf_descr = str(clf).split('(')[0]
+    return clf_descr, pred
+
+def vectorize(X_train):
+    '''computes an array of word2vec feature vectors from an array of documents'''
     X = []
     maxDocLength = 0
-    for doc in abstractsTrain:
+    for doc in X_train:
         features = []
         tokens = processDocument(doc, opts.lowercase, opts.lemmatize)
         wordCount = 0
@@ -120,19 +155,69 @@ if __name__ == "__main__":
         X.append(features)
         if len(features) > maxDocLength:
             maxDocLength = len(features)
-    print("done")
-    print()
 
-    # exend any feature vectors shorter than the longest document by zero vectors
-    print("Extending feature vectors")
+    return X, maxDocLength
+
+def extend(X, maxDocLength):
+    '''Exend any feature vectors shorter than the longest vector by zero vectors'''
     zeros = np.zeros(model.vector_size)
     for vector in X:
         while len(vector) < maxDocLength:
             vector.append(zeros)
+
+if __name__ == "__main__":
+
+    model = loadVectors()
+
+    # define the categories
+    categories = [
+        'stats',
+        'math',
+        'physics',
+        'cs'
+    ]
+
+    print("Processing data...")
+    abstractsTrain, y_train, abstractsTest = processData()
+    print("Train set size: %d documents" % len(abstractsTrain))
+    print("Test set size: %d documents" % len(abtractsTest))
+    print("done")
+    print()
+
+    print("Extracting development set from training set")
+    X_train, X_test, y_train, y_test = train_test_split(abstractsTrain, yTrain, test_size=0.3, random_state=0)
+    print("Using %d training examples and %d testing examples" % len(X_train), len(X_test))
+    print("done")
+    print()
+
+    # X is our feature vectors
+    print("Constructing feature vectors")
+    X, maxDocLength = vectorize(X_train)
+    print("done")
+    print()
+
+    # exend any feature vectors shorter than the longest document by zero vectors
+    print("Largest feature vector consists of %d word2vec vectors" % maxDocLength)
+    print("Extending other feature vectors to this length")
+    extend(X, maxDocLength)
     print("done")
     print()
 
     clf = LinearSVC()
-    clfDesc, pred = benchmark(clf, X, y, abstractsTest)
+    clfDesc, pred, score = benchmark(clf, X, y_train, X_test, y_test)
+    print('=' * 80)
+    print("Summary:")
+    print('_' * 80)
+    print("Accuracy of %s using word2vec: %f" % clfDesc, score)
+    print()
 
-    writeResults(clfDesc, pred)
+    # see if we need to retrain and make predictions for the test data
+    if opts.persist:
+        print("Retraining on all train data and writing predictions for test data to disk")
+        X_train, maxDocLength = vectorize(abstractsTrain)
+        extend(X_train, maxDocLength)
+        X_test, maxDocLength = vectorize(abstractsTest)
+        extend(X_test, maxDocLength)
+        clfDesc, pred = predict(clf, X_train, y_train, X_test)
+        writeResults(clfDesc, pred)
+        print()

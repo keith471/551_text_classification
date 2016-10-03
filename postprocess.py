@@ -2,16 +2,19 @@
 
 import csv
 import sys
+from time import time
 
 def writeToCsv(filename, data, fieldnames):
     ''' writes and array of data to csv with field names fieldNames'''
-    print "Writing predictions for %s classifier to %s.csv" % (filename, filename)
-    with open(filename + '.csv', 'w') as mycsvfile:
+    # append time to filename to ensure uniqueness
+    uniqueFilename = filename + str(time())
+    print "Writing predictions for %s classifier to %s.csv" % (filename, uniqueFilename)
+    with open(uniqueFilename + '.csv', 'w') as mycsvfile:
         writer = csv.writer(mycsvfile)
         writer.writerow(fieldnames)
         writer.writerows(data)
 
-def writeResults(filename, pred):
+def writeResults(filename='predictions', pred):
     ''' takes an array of predictions and converts it into an array of id, prediction entries '''
     data = [[i,v] for i,v in enumerate(pred)]
     fieldnames = ['id', 'category']

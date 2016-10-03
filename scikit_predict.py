@@ -177,6 +177,7 @@ def printSummary(results):
 ################################################################################
 
 if __name__ == "__main__":
+
     X_train, y_train, X_test = getData()
     print("data loaded")
 
@@ -301,7 +302,7 @@ if __name__ == "__main__":
         results.append((clf_desc, pred, train_time, test_time))
 
     # spit out prediction files for each classifier on the actual test data and
-    # a file which gives performance for 
+    # a file which gives performance for
 
     #print("Writing predictions to csv")
     #postProcess(results)
