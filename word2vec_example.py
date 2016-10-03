@@ -1,4 +1,4 @@
-''' YOOOOOO '''
+'''Classifies documents by learning a model using word2vec features'''
 from __future__ import print_function
 from __future__ import with_statement
 
@@ -46,16 +46,18 @@ op.print_help()
 print()
 
 def loadVectors():
-    print("Loading word2vec vectors...")
+    print("loading word2vec vectors...")
     t0 = time()
     model = Word2Vec.load_word2vec_format('/Volumes/Seagate Backup Plus Drive/GoogleNews-vectors-negative300.bin', binary = True)
     loadTime = time() - t0
     print("word2vec vectors loaded in %0.3f seconds" % loadTime)
 
     # done "training" the model; we can do the following to trim uneeded memory
-    print("Trimming model memory")
+    t0 = time()
+    print("trimming model memory...")
     model.init_sims(replace=True)
-    print("Done trimming memory")
+    trimTime = time() - t0
+    print("trimmed memory in %0.3f seconds" % trimTime)
 
     return model
 
@@ -63,8 +65,8 @@ def processDocument(doc, lowercase, lemmatize):
     ''' takes all text of a document and returns just the words (punctuation removed, other than apostrophes) '''
     # must remove punctuation as we have no word2vec vectors for them
     nopunc = doc.translate(None, string.punctuation)
-    tokens =  word_tokenize(nopunk)
-    if lower:
+    tokens =  word_tokenize(nopunc)
+    if lowercase:
         tokens = [w.lower() for w in tokens]
     if lemmatize:
         wnl = WordNetLemmatizer()
@@ -82,7 +84,7 @@ if __name__ == "__main__":
     maxDocLength = 0
     for doc in abstractsTrain:
         features = []
-        tokens = processDocument()
+        tokens = processDocument(doc, opts.lowercase, opts.lemmatize)
         wordCount = 0
         for token in tokens:
             if token in model:
