@@ -106,7 +106,7 @@ def trim(s):
 
 # Benchmark classifiers
 # clf is the classifier
-def benchmark(clf, X_train, y_train, X_test):
+def benchmark(clf, X_train, y_train, X_test, y_test):
     print('_' * 80)
     print("Training: ")
     print(clf)
@@ -130,12 +130,9 @@ def benchmark(clf, X_train, y_train, X_test):
     test_time = time() - t0
     print("test time:  %0.3fs" % test_time)
 
-    # need the classes of the test set for this
-    '''
-    # get the accuracy of the predictions
+    # get the accuracy of the predictions against the train data
     score = metrics.accuracy_score(y_test, pred)
     print("accuracy:   %0.3f" % score)
-    '''
 
     if hasattr(clf, 'coef_'):
         print("dimensionality: %d" % clf.coef_.shape[1])
@@ -151,8 +148,7 @@ def benchmark(clf, X_train, y_train, X_test):
         print()
 
 
-    # need the classes of the test set for this
-    '''
+    # print a report of the accuracy of the model against the
     if opts.print_report:
         print("classification report:")
         print(metrics.classification_report(y_test, pred,
@@ -161,7 +157,6 @@ def benchmark(clf, X_train, y_train, X_test):
     if opts.print_cm:
         print("confusion matrix:")
         print(metrics.confusion_matrix(y_test, pred))
-    '''
 
     print()
     clf_descr = str(clf).split('(')[0]
@@ -304,6 +299,9 @@ if __name__ == "__main__":
         clf_desc, pred, train_time, test_time = benchmark(clf, Xtr, ytr, Xte)
         writeResults(clf_desc, pred)
         results.append((clf_desc, pred, train_time, test_time))
+
+    # spit out prediction files for each classifier on the actual test data and
+    # a file which gives performance for 
 
     #print("Writing predictions to csv")
     #postProcess(results)
