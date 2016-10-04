@@ -14,7 +14,7 @@ def writeToCsv(filename, data, fieldnames):
         writer.writerow(fieldnames)
         writer.writerows(data)
 
-def writeResults(filename='predictions', pred):
+def writeResults(pred, filename='predictions'):
     ''' takes an array of predictions and converts it into an array of id, prediction entries '''
     data = [[i,v] for i,v in enumerate(pred)]
     fieldnames = ['id', 'category']

@@ -1,6 +1,8 @@
-'''Classifies documents by learning a model using word2vec features'''
+'''Uses a convolution neural network to classify documents using word2vec features'''
 from __future__ import print_function
 from __future__ import with_statement
+
+from sknn.mlp import Classifier, Convolution, Layer
 
 import sys
 import logging
@@ -97,6 +99,31 @@ def processDocument(doc, lowercase, lemmatize):
         tokens = [wnl.lemmatize(w) for w in tokens]
     return tokens
 
+def vectorize(X_train, model):
+    '''computes an array of word2vec feature vectors from an array of documents'''
+    X = []
+    maxDocLength = 0
+    for doc in X_train:
+        features = []
+        tokens = processDocument(doc, opts.lowercase, opts.lemmatize)
+        wordCount = 0
+        for token in tokens:
+            if token in model:
+                features.append(model[token])
+                wordCount += 1
+        X.append(features)
+        if len(features) > maxDocLength:
+            maxDocLength = len(features)
+
+    return X, maxDocLength
+
+def extend(X, maxDocLength):
+    '''Exend any feature vectors shorter than the longest vector by zero vectors'''
+    zeros = [0.0 for x in range(0, model.vector_size)]
+    for vector in X:
+        while len(vector) < maxDocLength:
+            vector.append(zeros)
+
 def benchmark(clf, X_train, y_train, X_test, y_test):
     print('_' * 80)
     print("Training: ")
@@ -150,31 +177,6 @@ def predict(clf, X_train, y_train, X_test):
     clf_descr = str(clf).split('(')[0]
     return clf_descr, pred
 
-def vectorize(X_train):
-    '''computes an array of word2vec feature vectors from an array of documents'''
-    X = []
-    maxDocLength = 0
-    for doc in X_train:
-        features = []
-        tokens = processDocument(doc, opts.lowercase, opts.lemmatize)
-        wordCount = 0
-        for token in tokens:
-            if token in model:
-                features.append(model[token])
-                wordCount += 1
-        X.append(features)
-        if len(features) > maxDocLength:
-            maxDocLength = len(features)
-
-    return X, maxDocLength
-
-def extend(X, maxDocLength):
-    '''Exend any feature vectors shorter than the longest vector by zero vectors'''
-    zeros = np.zeros(model.vector_size)
-    for vector in X:
-        while len(vector) < maxDocLength:
-            vector.append(zeros)
-
 if __name__ == "__main__":
 
     model = loadVectors()
@@ -211,20 +213,38 @@ if __name__ == "__main__":
     print()
 
     # X is our feature vectors
-    print("Constructing feature vectors")
-    X, maxDocLength = vectorize(X_train)
+    print("Constructing feature vectors for training and testing data")
+    X_train, maxDocLength_train = vectorize(X_train, model)
+    X_test, maxDocLength_test = vectorize(X_test, model)
     print("done")
     print()
 
-    # exend any feature vectors shorter than the longest document by zero vectors
+    maxDocLength = max(maxDocLength_train, maxDocLength_test)
     print("Largest feature vector consists of %d word2vec vectors" % maxDocLength)
-    print("Extending other feature vectors to this length")
-    extend(X, maxDocLength)
+    print("Extending other feature vectors to this length for both train and test data")
+    extend(X_train, maxDocLength)
+    extend(X_test, maxDocLength)
     print("done")
     print()
 
-    clf = LinearSVC()
-    clfDesc, pred, score = benchmark(clf, X, y_train, X_test, y_test)
+    clf = Classifier(
+        layers=[
+            Convolution('Rectifier', channels=12, kernel_shape=(3, 3), border_mode='full'),
+            Convolution('Rectifier', channels=8, kernel_shape=(3, 3), border_mode='valid'),
+            Layer('Rectifier', units=64),
+            Layer('Softmax')],
+        learning_rate=0.002,
+        valid_size=0.2,
+        n_stable=10,
+        verbose=True)
+
+    # convert data to ndarrays for training
+    X_train = np.array(X_train)
+    X_test = np.array(X_test)
+    y_train = np.array(y_train)
+    y_test = np.array(y_test)
+
+    clfDesc, pred, score = benchmark(clf, X_train, y_train, X_test, y_test)
     print('=' * 80)
     print("Summary:")
     print('_' * 80)
@@ -234,10 +254,18 @@ if __name__ == "__main__":
     # see if we need to retrain and make predictions for the test data
     if opts.persist:
         print("Retraining on all train data and writing predictions for test data to disk")
-        X_train, maxDocLength = vectorize(abstractsTrain)
+        X_train, maxDocLength_train = vectorize(abstractsTrain, model)
+        X_test, maxDocLength_test = vectorize(abstractsTest, model)
+        maxDocLength = max(maxDocLength_train, maxDocLength_test)
         extend(X_train, maxDocLength)
-        X_test, maxDocLength = vectorize(abstractsTest)
         extend(X_test, maxDocLength)
+        X_train = np.array(X_train)
+        print("Shape of X_train:")
+        print(X_train.shape)
+        X_test = np.array(X_test)
+        print("Shape of X_test:")
+        print(X_test.shape)
+        print()
         clfDesc, pred = predict(clf, X_train, y_train, X_test)
         writeResults(clfDesc, pred)
         print()
