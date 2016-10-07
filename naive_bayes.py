@@ -9,6 +9,10 @@ import sys, os, codecs
 from time import time
 
 from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
 
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.stem import WordNetLemmatizer
@@ -18,10 +22,13 @@ from classifiers import NaiveBayes
 from preprocess import readData
 from postprocess import writeResults
 
+################################################################################
+# logging and options
+################################################################################
+
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
 
-# parse commandline arguments
 op = OptionParser()
 op.add_option("--report",
               action="store_true", dest="print_report",
@@ -71,13 +78,21 @@ if opts.max_n_gram_length:
         op.error("Max n-gram length must be positive")
         sys.exit()
 
-if opts.test_fraction > 1.0 or opts.test_fraction < 0.0:
-    op.error("The test fraction must be between 0.0 and 1.0")
-    sys.exit(1)
+if opts.test_fraction:
+    if opts.test_fraction > 1.0 or opts.test_fraction < 0.0:
+        op.error("The test fraction must be between 0.0 and 1.0")
+        sys.exit(1)
 
 print(__doc__)
 op.print_help()
 print()
+
+################################################################################
+# Helpers
+################################################################################
+
+def size_mb(docs):
+    return sum(len(s.encode('utf-8')) for s in docs) / 1e6
 
 def selectChi2(X_train, y_train, X_test, feature_names=None):
     print("Extracting %d best features by a chi-squared test" %
@@ -96,23 +111,15 @@ def selectChi2(X_train, y_train, X_test, feature_names=None):
     print()
     return X_train, X_test, feature_names
 
+
 if __name__ == "__main__":
 
     ################################################################################
     # data loading
     ################################################################################
 
-    docs_train, y_train, docs_test = getData()
+    docs_train, y_train, docs_test = readData()
     print("data loaded")
-
-    data_train_size_mb = size_mb(docs_train)
-    data_test_size_mb = size_mb(docs_test)
-
-    print("%d abstracts - %0.3fMB (training set)" % (
-        len(docs_train), data_train_size_mb))
-    print("%d abtracts - %0.3fMB (test set)" % (
-        len(docs_test), data_test_size_mb))
-    print()
 
     ################################################################################
     # optionally extract only a portion of data for training
@@ -129,8 +136,16 @@ if __name__ == "__main__":
         docs_train = docs_train[:threshold]
         y_train = y_train[:threshold]
     print("Train set size: %d documents" % len(docs_train))
-    print("Test set size: %d documents" % len(abstractsTest))
+    print("Test set size: %d documents" % len(docs_test))
     print("done")
+    print()
+
+    data_train_size_mb = size_mb(docs_train)
+    data_test_size_mb = size_mb(docs_test)
+    print("%d abstracts - %0.3fMB (training set)" % (
+        len(docs_train), data_train_size_mb))
+    print("%d abtracts - %0.3fMB (test set)" % (
+        len(docs_test), data_test_size_mb))
     print()
 
     ################################################################################
@@ -141,6 +156,11 @@ if __name__ == "__main__":
     docs_train, docs_dev, y_train, y_dev = train_test_split(docs_train, y_train, test_size=0.3, random_state=0)
     print("Using %d training examples and %d testing examples" % (len(docs_train), len(docs_dev)))
     print("done")
+    print()
+
+    data_dev_size_mb = size_mb(docs_dev)
+    print("%d abstracts - %0.3fMB (development set)" % (
+        len(docs_dev), data_dev_size_mb))
     print()
 
     # define the categories
@@ -186,7 +206,7 @@ if __name__ == "__main__":
         vectorizer = HashingVectorizer(lowercase=lowercase, tokenizer=tokenizer, stop_words=stop_words,
                                         ngram_range=(1,maxNGramLength), non_negative=True, n_features=opts.n_features)
         X_train = vectorizer.transform(docs_train)
-    else if opt.use_tf_idf:
+    elif opts.use_tf_idf:
         # a way to re-weight the count features such that extremely common words such
         # as "the" and "a" are less important than the less common ones
         print("Extracting features from the test data using a tfidf vectorizer")

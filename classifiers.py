@@ -163,6 +163,3 @@ class NaiveBayes:
 
     def cost(self, y, predictions):
         return self.getAccuracy(testSet, predictions)
-
-
-if __name__ == "__main__":
