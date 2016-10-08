@@ -13,12 +13,15 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn import metrics
 
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 
 from classifiers import NaiveBayes
+from classifiers import GaussianNaiveBayes
 from preprocess import readData
 from postprocess import writeResults
 
@@ -67,6 +70,12 @@ op.add_option("--use_hashing",
 op.add_option("--n_features",
               action="store", type=int, default=2 ** 16,
               help="n_features when using the hashing vectorizer.")
+op.add_option("--gaussian",
+              action="store_true",
+              help="If set, features will be treated as continuous random variables with Gaussian distributions")
+op.add_option("--use_scikit",
+              action="store_true",
+              help="If set, use scikit's Gaussin naive bayes implementation")
 
 (opts, args) = op.parse_args()
 if len(args) > 0:
@@ -235,7 +244,7 @@ if __name__ == "__main__":
 
     # optionally select only the top k features
     if opts.select_chi2:
-        X_train, X_dev, feature_names = selectChi2(X_train, X_dev, feature_names)
+        X_train, X_dev, feature_names = selectChi2(X_train, y_train, X_dev, feature_names)
 
     # covert feature_names to an ndarray
     feature_names = np.asarray(feature_names)
@@ -244,21 +253,49 @@ if __name__ == "__main__":
     # classification and prediction
     ################################################################################
 
-    clf = NaiveBayes()
+    if opts.gaussian:
+        clf = GaussianNaiveBayes()
+    elif opts.use_scikit:
+        clf = GaussianNB()
+    else:
+        clf = NaiveBayes()
 
-    print("Training on training set")
-    t0 = time()
-    clf.train(X_train, y_train)
-    dur = time() - t0
-    print("completed training in %fs" % dur)
-    print()
-    print("Predicting on development set")
-    t0 = time()
-    pred = clf.predict(X_dev)
-    dur = time() - t0
-    print("completed predictions in %fs" % dur)
-    print()
-    cost = clf.cost(y_dev)
-    print("Cost:")
-    print(cost)
-    print()
+    if opts.use_scikit:
+        X_train = X_train.toarray()
+        X_dev = X_dev.toarray()
+        print('_' * 80)
+        print("Training: ")
+        print(clf)
+        t0 = time()
+        clf.fit(X_train, y_train)
+        train_time = time() - t0
+        print("train time: %0.3fs" % train_time)
+        print()
+
+        t0 = time()
+        pred = clf.predict(X_dev)
+        test_time = time() - t0
+        print("test time:  %0.3fs" % test_time)
+        print()
+
+        # get the accuracy of the predictions against the train data
+        score = metrics.accuracy_score(y_dev, pred)
+        print("accuracy:   %0.3f" % score)
+        print()
+    else:
+        print("Training on training set")
+        t0 = time()
+        clf.train(X_train, y_train)
+        dur = time() - t0
+        print("completed training in %fs" % dur)
+        print()
+        print("Predicting on development set")
+        t0 = time()
+        pred = clf.predict(X_dev)
+        dur = time() - t0
+        print("completed predictions in %fs" % dur)
+        print()
+        accuracy = clf.getAccuracy(y_dev, pred)
+        print("Accuracy:")
+        print(accuracy)
+        print()
