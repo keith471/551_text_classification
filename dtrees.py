@@ -38,6 +38,20 @@ class LemmaTokenizer(object):
     def __call__(self, doc):
         return [self.wnl.lemmatize(word) for word in word_tokenize(doc)]
 
+def selectChi2(X_train, y_train, X_test, feature_names=None):
+    # the SelectKBest object is essentially a vectorizer that will select only the most influential k features of your input vectors
+    ch2 = SelectKBest(chi2, k=300)
+    X_train = ch2.fit_transform(X_train, y_train)
+    X_test = ch2.transform(X_test) # revectorize X_test
+    if feature_names:
+        # keep selected feature names
+        feature_names = [feature_names[i] for i
+                         in ch2.get_support(indices=True)]
+    print("n_samples: %d, n_features: %d" % X_test.shape)
+    print()
+    return X_train, X_test, feature_names
+
+
 class decisionnode:
     def __init__(self,col=-1,value=None,results=None,tb=None,fb=None):
         self.col=col # column index of criteria being tested
@@ -83,9 +97,9 @@ def entropy(rows, categories):
     return ent
 
 #usage: rows = X_train_arr, output = y_train, categories = categories
-def buildtree(rows, output, categories, scorefun=entropy):
+def buildtree(rows, output, categories, entropy=entropy):
     if len(rows) == 0: return decisionnode()
-    current_score = scorefun(output, categories)
+    current_score = entropy(output, categories)
     best_gain = 0.0
     best_criteria = None
     best_sets = None
@@ -101,18 +115,19 @@ def buildtree(rows, output, categories, scorefun=entropy):
         p = float(len(set1)) / len(rows) 
         set1_ys = [output[i] for i in indices]
         set2_ys = [output[i] for i in list(set(range(0,len(output)))-set(indices))]
-        gain = current_score - p*scorefun(set1_ys, categories) - (1-p)*scorefun(set2_ys, categories)
+        gain = current_score - p*entropy(set1_ys, categories) - (1-p)*entropy(set2_ys, categories)
         if gain > best_gain and len(set1) > 0 and len(set2) > 0:
             best_gain = gain
             best_criteria = col #if dividing on every value: best_criteria = (col, value)
             best_sets = (set1, set2)
+            best_sets_ys = (set1_ys,set2_ys)
     if best_gain > 0:
-        trueBranch = buildtree(best_sets[0])
-        falseBranch = buildtree(best_sets[1])
+        trueBranch = buildtree(best_sets[0],best_sets_ys[0],categories)
+        falseBranch = buildtree(best_sets[1], best_sets_ys[1], categories)
         return decisionnode(col=best_criteria, value=1,
                 tb=trueBranch, fb=falseBranch)
     else:
-        return decisionnode(results=uniquecounts(output))
+        return decisionnode(results=uniquecounts(output,categories))
 
 X_train, y_train, X_test = getData()
 print("data loaded")
@@ -131,14 +146,14 @@ stop_words = 'english'
 print("Using n-grams of up to %d words in length" % maxNGramLength)
 print("Extracting features from the test data using a count vectorizer")
 vectorizer = CountVectorizer(lowercase=lowercase, stop_words=stop_words, ngram_range=(1,maxNGramLength))
-# print vectorizer.toarray()
 
-# print("asdhjkalskdj")
 
-# print(vectorizer)
 
 X_train = vectorizer.fit_transform(X_train)
 X_test = vectorizer.transform(X_test)
+feature_names = vectorizer.get_feature_names()
+
+X_train, X_test, feature_names = selectChi2(X_train, y_train, X_test, feature_names)
 
 X_train_arr = X_train.toarray()
 X_test_arr = X_test.toarray()
