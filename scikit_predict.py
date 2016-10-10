@@ -254,7 +254,7 @@ if __name__ == "__main__":
         print("Extracting %d best features by a chi-squared test" %
               opts.select_chi2)
         t0 = time()
-        # the SelectKBest object is essentially a vectorizer that will select only the most k features of your input vectors
+        # the SelectKBest object is essentially a vectorizer that will select only the most influential k features of your input vectors
         ch2 = SelectKBest(chi2, k=opts.select_chi2)
         X_train = ch2.fit_transform(X_train, y_train)
         X_test = ch2.transform(X_test) # revectorize X_test
