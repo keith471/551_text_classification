@@ -304,7 +304,7 @@ class GaussianNaiveBayes:
         return (total/float(len(y)))
 
     # API -- this is all you need to use
-    def train(self, X, y):
+    def fit(self, X, y):
         # X is a sparse matrix of sparse matrices
         # convert it to an ndarray
         X = X.toarray()
