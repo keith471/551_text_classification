@@ -1,4 +1,5 @@
 # postprocessing
+from __future__ import print_function
 
 import csv
 import sys
@@ -7,8 +8,9 @@ from time import time
 def writeToCsv(filename, data, fieldnames):
     ''' writes and array of data to csv with field names fieldNames'''
     # append time to filename to ensure uniqueness
-    uniqueFilename = filename + str(time())
-    print "Writing predictions for %s classifier to %s.csv" % (filename, uniqueFilename)
+    uniqueFilename = filename + "_%.f" % time()
+    print("Writing predictions for %s classifier to %s.csv" % (filename, uniqueFilename))
+    print()
     with open(uniqueFilename + '.csv', 'w') as mycsvfile:
         writer = csv.writer(mycsvfile)
         writer.writerow(fieldnames)

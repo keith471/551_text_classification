@@ -66,7 +66,6 @@ class NaiveBayes:
         '''
         summaries = []
         clusters = zip(*instances)
-        del clusters[-1] # delete the cluster of y values as we need not compute anything for these
         for index, cluster in enumerate(clusters):
             # cluster is an array of all the values of a given feature in instances
             summaries.append(self.getDiscreteProbabilities(cluster))
@@ -123,7 +122,7 @@ class NaiveBayes:
         returns an array of classification predictions for the instances in a test set
         '''
         predictions = []
-        for i in range(X.shape[0]):
+        for i in range(len(X)):
             result = self.predictSingleInstance(summaries, X[i])
             predictions.append(result)
         return predictions
@@ -139,17 +138,21 @@ class NaiveBayes:
         return (total/float(len(y)))
 
     # API -- this is all you need to use
-    def train(self, X, y):
-        # X is a sparse matrix of sparse matrices
-        # convert it to an ndarray
-        X = X.toarray()
+    def fit(self, X, y):
+        # X could be a sparse matrix of sparse matrices
+        # If it is, convert it to an ndarray
+        op = getattr(X, "toarray", None)
+        if op:
+            X = X.toarray()
         self.X = X
         self.y = y
         self.summaries = self.summarizeByClass(X, y)
         return self.summaries
 
     def predict(self, X):
-        X = X.toarray()
+        op = getattr(X, "toarray", None)
+        if op:
+            X = X.toarray()
         self.pred = self.getPredictions(self.summaries, X)
         return self.pred
 

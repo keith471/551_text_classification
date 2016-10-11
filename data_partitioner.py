@@ -6,6 +6,7 @@ class DataPartitioner:
     '''
 
     def __init__(self, n, X, y):
+        X = X.toarray()
         self.n = n
         self.partitions = self.partition(n, X, y)
 
@@ -30,12 +31,12 @@ class DataPartitioner:
                 trainingSet[1].extend(partition[1])
         return trainingSet, validationSet
 
-    def getPartitions():
+    def getPartitions(self):
         '''Returns all partitions in the following format:
         [(X1_train, y1_train, X1_test, y1_test),...for all n paritions]
         '''
         partitions = []
-        for i in range(n):
-            training, validation = getIthPartition(i)
-            partitions.append(training[0], training[1], validation[0], validation[1])
+        for i in range(self.n):
+            training, validation = self.getIthPartition(i)
+            partitions.append((training[0], training[1], validation[0], validation[1]))
         return partitions

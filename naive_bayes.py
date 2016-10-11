@@ -83,6 +83,9 @@ op.add_option("--predict",
 op.add_option("--cv_range",
               action="store", type=int, nargs=3, dest="cv_range",
               help="Three positive integers separated by spaces where the first and second are equal to the start and end of the range, inclusive, and the middle is equal to the step size")
+op.add_option("--devset",
+              action="store_true",
+              help="If set, accuracy will be measured against a 30 percent dev set. Cannot be used in tandem with --cv_range.")
 
 (opts, args) = op.parse_args()
 if len(args) > 0:
@@ -104,6 +107,10 @@ if opts.cv_range:
     if start < 0 or start > end or step < 1:
         op.error("Invalid range")
         sys.exit(1)
+
+if opts.cv_range and opts.devset:
+    op.error("Can only use one of cross validation or a develpoment set")
+    sys.exit(1)
 
 print(__doc__)
 op.print_help()
@@ -146,7 +153,7 @@ def selectChi2Cv(X_train, y_train, k):
 def crossValidate(X_train, y_train, clf, rng):
     '''Return a an array of tuples: (# features used, avg prediction accuracy)'''
     arr = []
-    if type(clf) == GuassianNB:
+    if type(clf) == "GuassianNB":
         accuracyFunc = metrics.accuracy_score
     else:
         accuracyFunc = clf.getAccuracy
@@ -276,6 +283,10 @@ def benchmark(X_train, y_train, X_dev, y_dev):
         print(accuracy)
         print()
 
+def printAccuracies(accs):
+    print("# features\taccuracy")
+    for (numFeats, acc) in accs:
+        print("%d\t%f" % (numFeats, acc))
 
 if __name__ == "__main__":
 
@@ -331,8 +342,9 @@ if __name__ == "__main__":
     ################################################################################
     # extract a development set
     ################################################################################
-    if !opts.cv_range:
-        #  if we are not cross validating, we will want to still select a development set to evaluate performance (albeit more crudely)
+    if opts.devset:
+        #  if we are not cross validating, we may still select a development set to evaluate performance (albeit more crudely)
+        training_on_data_fraction = True
         print("Extracting development set from training set")
         docs_train, docs_dev, y_train, y_dev = train_test_split(docs_train, y_train, test_size=0.3, random_state=0)
         print("Using %d training examples and %d testing examples" % (len(docs_train), len(docs_dev)))
@@ -352,8 +364,8 @@ if __name__ == "__main__":
 
     feature_names = vectorizer.get_feature_names()
 
-    if !opts.cv_range:
-        X_test = getXTest(docs_dev, vectorizer)
+    if opts.devset:
+        X_dev = getXTest(docs_dev, vectorizer)
 
     ################################################################################
     # classification and prediction
@@ -369,13 +381,16 @@ if __name__ == "__main__":
     # either cross validate over a range of numbers of features, or determine the
     # performance on the development set for all or just some features (no cross validation)
     if opts.cv_range:
+        print("Cross validating to find the best number of features in the provided range")
         # Cross validate over the range of numbers of features
         start, end, step = opts.cv_range
         rng = range(start, end+1, step)
         accuracies = crossValidate(X_train, y_train, clf, rng)
 
         # print out the accuracies
+        print("Summary of accuracies:")
         printAccuracies(accuracies)
+        print()
 
         bestAcc = 0
         bestNumFeats = 0
@@ -383,26 +398,33 @@ if __name__ == "__main__":
             if acc > bestAcc:
                 bestAcc = acc
                 bestNumFeats = numFeats
-        print("Best number of features: %d", % bestNumFeats)
-
+        print("Best number of features: %d" % bestNumFeats)
+        print()
         numFeatsToPredictOn = bestNumFeats
-    else:
+    elif opts.devset:
+        print("Gauging model performance against development set")
         if opts.select_chi2:
             # we didn't specify a range. But we still might want to select only
             # the top k features to make predictions against the development set
-            X_train, X_test, feature_names = selectChi2(X_train, y_train, X_test, opts.select_chi2, feature_names)
+            X_train, X_dev, feature_names = selectChi2(X_train, y_train, X_dev, opts.select_chi2, feature_names)
             # covert feature_names to an ndarray
             feature_names = np.asarray(feature_names)
-
-            benchmark(X_train, y_train, X_test, y_dev)
-
+            benchmark(X_train, y_train, X_dev, y_dev)
             numFeatsToPredictOn = opts.select_chi2
         else:
+            print("Using all features")
             # use all the features to make predictions against the development set
-            benchmark(X_train, y_train, X_test, y_dev)
+            benchmark(X_train, y_train, X_dev, y_dev)
+            numFeatsToPredictOn = -1
+    else:
+        # just in case we don't train or validate but still want to predict
+        if opts.select_chi2:
+            numFeatsToPredictOn = opts.select_chi2
+        else:
             numFeatsToPredictOn = -1
 
     if opts.predict:
+        print("Making predictions!!!")
         # make predictions for docs_test
         if training_on_data_fraction:
             # revectorize on ALL the data
