@@ -51,8 +51,8 @@ def selectChi2(X_train, y_train, X_test, feature_names=None):
     print()
     return X_train, X_test, feature_names
 
-
-class decisionnode:
+#object representation of decision tree node
+class dtreenode:
     def __init__(self,col=-1,value=None,results=None,tb=None,fb=None):
         self.col=col # column index of criteria being tested
         self.value=value # vlaue necessary to get a true result
@@ -61,7 +61,7 @@ class decisionnode:
         self.fb=fb # false decision nodes
 
 #usage: rows = X_train_arr
-def divideset(rows,column,value=1):
+def splitset(rows,column,value=1):
 	# Make a function that tells us if a row is in the first group 
 	# (true) or the second group (false)
 	split_function=lambda row:row[column]>=value
@@ -72,7 +72,7 @@ def divideset(rows,column,value=1):
 	return (set1,set2, indices)
 
 #usage: rows = y_train, categories = categories
-def uniquecounts(rows, categories):
+def outputcounts(rows, categories):
     results = defaultdict(lambda: 0)
     for row in rows:
     	r = row
@@ -86,9 +86,8 @@ def uniquecounts(rows, categories):
 
 #usage: rows = y_train, categories = categories
 def entropy(rows, categories):
-    from math import log
     log2=lambda x:log(x)/log(2) 
-    results=uniquecounts(rows,categories)
+    results=outputcounts(rows,categories)
     # Now calculate the entropy
     ent=0.0
     for r in results.keys():
@@ -98,19 +97,19 @@ def entropy(rows, categories):
 
 #usage: rows = X_train_arr, output = y_train, categories = categories
 def buildtree(rows, output, categories, entropy=entropy):
-    if len(rows) == 0: return decisionnode()
+    if len(rows) == 0: return dtreenode()
     current_score = entropy(output, categories)
     best_gain = 0.0
-    best_criteria = None
+    best_col = None
     best_sets = None
     column_count = len(rows[0])
     for col in range(0, column_count):     
         #OPTIONAL: TRY TO DIVIDE ON EVERY VALUE
         # column_values = set([row[col] for row in rows]) <- possible values
         # for value in column_values:
-        #     set1, set2 = divideset(rows, col, value)
+        #     set1, set2 = splitset(rows, col, value)
         #OTHERWISE: DIVIDE ON VALUE >=1 
-        set1, set2, indices = divideset(rows, col)
+        set1, set2, indices = splitset(rows, col)
         # Information gain
         p = float(len(set1)) / len(rows) 
         set1_ys = [output[i] for i in indices]
@@ -118,16 +117,29 @@ def buildtree(rows, output, categories, entropy=entropy):
         gain = current_score - p*entropy(set1_ys, categories) - (1-p)*entropy(set2_ys, categories)
         if gain > best_gain and len(set1) > 0 and len(set2) > 0:
             best_gain = gain
-            best_criteria = col #if dividing on every value: best_criteria = (col, value)
+            best_col = col #if dividing on every value: best_col = (col, value)
             best_sets = (set1, set2)
             best_sets_ys = (set1_ys,set2_ys)
     if best_gain > 0:
         trueBranch = buildtree(best_sets[0],best_sets_ys[0],categories)
         falseBranch = buildtree(best_sets[1], best_sets_ys[1], categories)
-        return decisionnode(col=best_criteria, value=1,
+        return dtreenode(col=best_col, value=1,
                 tb=trueBranch, fb=falseBranch)
     else:
-        return decisionnode(results=uniquecounts(output,categories))
+        return dtreenode(results=outputcounts(output,categories))
+
+def printtree(tree, feature_names, indent=''):
+    # Is this a leaf node?
+    if tree.results!=None:
+        print(str(tree.results))
+    else:
+        # Print the criteria
+        print('Column ' + feature_names[tree.col] + ' >= '+ str(tree.value)+'? ')
+        # Print the branches
+        print(indent+'True->',)
+        printtree(tree.tb,feature_names,indent+'  ')
+        print(indent+'False->',)
+        printtree(tree.fb,feature_names,indent+'  ')
 
 X_train, y_train, X_test = getData()
 print("data loaded")
@@ -148,17 +160,22 @@ print("Extracting features from the test data using a count vectorizer")
 vectorizer = CountVectorizer(lowercase=lowercase, stop_words=stop_words, ngram_range=(1,maxNGramLength))
 
 
-
 X_train = vectorizer.fit_transform(X_train)
 X_test = vectorizer.transform(X_test)
 feature_names = vectorizer.get_feature_names()
 
-X_train, X_test, feature_names = selectChi2(X_train, y_train, X_test, feature_names)
 
+
+X_train, X_test, feature_names = selectChi2(X_train, y_train, X_test, feature_names)
 X_train_arr = X_train.toarray()
 X_test_arr = X_test.toarray()
 #converting sparse matrices to full matrices
 #a lot more inneficient, but working with sparse matrices is a headache :(
 
+#for testing:
+# X_train_arr = X_train_arr[0:100]
+# y_train = y_train[0:100]
+
 print("Building the decision tree")
-buildtree(rows=X_train_arr, output=y_train, categories=cats) #<-magic happens here
+dtree = buildtree(rows=X_train_arr, output=y_train, categories=cats) #<-magic happens here
+printtree(dtree, feature_names)
