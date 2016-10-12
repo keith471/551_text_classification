@@ -4,16 +4,24 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from preprocess import processData
 from sklearn.metrics import accuracy_score
+from sklearn.naive_bayes import MultinomialNB
 from postprocess import writeResults
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import LinearSVC
 
 # accuracy =0.89331377858
 text_clf = Pipeline([('vect', CountVectorizer(ngram_range=(1,1), stop_words='english')),
-                     ('tfidf', TfidfTransformer()),
-                     ('clf', SGDClassifier(loss='hinge', penalty='l2',
-                                           alpha=1e-3, n_iter=5, random_state=42))
+                     ('tfidf', TfidfTransformer(sublinear_tf=True)),
+                     ('clf', SGDClassifier(loss='modified_huber', penalty='l2', n_iter=10))
+                     #('classifier', MultinomialNB())
                     ]);
                     
 features_train_complete, labels_train_complete, features_test_competition = processData()
+
+parameters = {'vect__ngram_range': [(1, 1), (1, 2)],
+               'tfidf__use_idf': (True, False),
+               'clf__alpha': (1e-2, 1e-3),
+               }
 
 sizeOfTraining = int(round(len(features_train_complete) * 0.7))
 
