@@ -116,6 +116,13 @@ print(__doc__)
 op.print_help()
 print()
 
+class LemmaTokenizer(object):
+    def __init__(self):
+        self.wnl = WordNetLemmatizer()
+
+    def __call__(self, doc):
+        return [self.wnl.lemmatize(word) for word in word_tokenize(doc)]
+
 ################################################################################
 # Helpers
 ################################################################################
@@ -215,7 +222,7 @@ def getXTrain(docs_train):
         # as "the" and "a" are less important than the less common ones
         print("Extracting features from the test data using a tfidf vectorizer")
         vectorizer = TfidfVectorizer(lowercase=lowercase, tokenizer=tokenizer, stop_words=stop_words,
-                                        ngram_range=(1,maxNGramLength), sublinear_tf=True, max_df=0.5)
+                                        ngram_range=(1,maxNGramLength))
         X_train = vectorizer.fit_transform(docs_train)
     else:
         print("Extracting features from the test data using a count vectorizer")
@@ -268,7 +275,7 @@ def benchmark(X_train, y_train, X_dev, y_dev):
     else:
         print("Training on training set")
         t0 = time()
-        clf.train(X_train, y_train)
+        clf.fit(X_train, y_train)
         dur = time() - t0
         print("completed training in %fs" % dur)
         print()

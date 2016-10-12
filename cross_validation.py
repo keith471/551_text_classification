@@ -7,7 +7,7 @@ from data_partitioner import DataPartitioner
 
 class CrossValidate:
 
-    def __init__(self, X, y, clf, accuracyFunc, cv=5):
+    def __init__(self, X, y, clf, accuracyFunc, cv=3):
         self.X = X
         self.y = y
         self.cv = cv
@@ -21,7 +21,7 @@ class CrossValidate:
         for i, (X_train, y_train, X_test, y_test) in enumerate(self.partitioner.getPartitions()):
             print("Training on training set %d" % i)
             t0 = time()
-            self.clf.train(X_train, y_train)
+            self.clf.fit(X_train, y_train)
             dur = time() - t0
             print("completed training in %fs" % dur)
             print("Predicting on test set %d" % i)
