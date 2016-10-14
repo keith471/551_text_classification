@@ -295,6 +295,18 @@ def printAccuracies(accs):
     for (numFeats, acc) in accs:
         print("%d\t%f" % (numFeats, acc))
 
+def printVector(x):
+    x = x.toarray()
+    countPositive = 0
+    countOverOne = 0
+    for v in x[0]:
+        if v > 0.0:
+            countPositive += 1
+        if v >= 1.0:
+            countOverOne += 1
+    print(countPositive)
+    print(countOverOne)
+
 if __name__ == "__main__":
 
     ################################################################################
